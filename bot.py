@@ -10,7 +10,7 @@ import sqlite3
 import database
 
 TOKEN = "8624024011:AAF1Vfh6oBM618EpdcXp6OHt0iRhUt0qMxE"
-ADMIN_ID = YOUR_ADMIN_ID_HERE  # <--- آیدی عددی تلگرام خودت را اینجا به صورت عدد (بدون دابل کوتشن) وارد کن
+ADMIN_ID = 123456789  # <--- آیدی عددی تلگرام خودت را اینجا به صورت عدد (بدون دابل کوتشن) وارد کن
 USDT_WALLET = "0x57365d61e63972d9Ce11b91e3CD8D29605f8a792"
 
 # لینک کانال‌ها
