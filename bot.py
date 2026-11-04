@@ -14,26 +14,33 @@ TOKEN = "8624024011:AAF1Vfh6oBM618EpdcXp6OHt0iRhUt0qMxE"
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
-# حالت‌های مکالمه برای دریافت کیف پول
 class UserStates(StatesGroup):
     waiting_for_wallet = State()
 
-# تابع کمکی برای ثبت کاربر در دیتابیس
 def register_user(user_id, username, referrer_id=None):
     conn = sqlite3.connect('dtf_bot.db')
     cursor = conn.cursor()
-    cursor.execute('SELECT user_id FROM users WHERE user_id = ?', (user_id,))
+    cursor.execute('SELECT user_id, referred_by FROM users WHERE user_id = ?', (user_id,))
     user = cursor.fetchone()
     
     if not user:
-        # ثبت کاربر جدید با ۱ امتیاز برنز
+        # کاربر جدید است: ثبت‌نام کامل با امتیاز برنز
         cursor.execute('''
             INSERT INTO users (user_id, username, referred_by, bronze_points)
             VALUES (?, ?, ?, 1)
         ''', (user_id, username, referrer_id))
         
-        # اگر معرف داشته باشد، به معرف امتیاز طلا اضافه می‌کنیم
+        # اگر معرف معتبر داشت و خودش به خودش لینک نداده بود
         if referrer_id and referrer_id != user_id:
+            cursor.execute('''
+                UPDATE users SET gold_points = gold_points + 1 WHERE user_id = ?
+            ''', (referrer_id,))
+    else:
+        # اگر کاربر قبلاً ثبت‌نام کرده بود اما معرف نداشت و الان با لینک رفرال آمده
+        if user[1] is None and referrer_id and referrer_id != user_id:
+            cursor.execute('''
+                UPDATE users SET referred_by = ? WHERE user_id = ?
+            ''', (referrer_id, user_id))
             cursor.execute('''
                 UPDATE users SET gold_points = gold_points + 1 WHERE user_id = ?
             ''', (referrer_id,))
@@ -47,7 +54,7 @@ async def cmd_start(message: types.Message):
     user_id = message.from_user.id
     username = message.from_user.username or "NoUsername"
     
-    # بررسی لینک رفرال (اگر کسی با لینک معرفی آمده باشد)
+    # استخراج صحیح شناسه معرف از دستور start
     args = message.text.split()
     referrer_id = None
     if len(args) > 1:
@@ -65,8 +72,10 @@ async def cmd_start(message: types.Message):
     builder.button(text="🥉 جامعه عمومی (برنز)", callback_data="bronze_section")
     builder.adjust(1)
     
+    ref_text = f"\n\n🎁 (شما از طریق لینک معرفی دوستتان وارد شدید و امتیاز دریافت کردید!)" if referrer_id and referrer_id != user_id else ""
+    
     await message.answer(
-        f"سلام {message.from_user.first_name} عزیز! به ربات رسمی تأمین مالی و پاداش **DTF** خوش آمدید.\n\n"
+        f"سلام {message.from_user.first_name} عزیز! به ربات رسمی تأمین مالی و پاداش **DTF** خوش آمدید.{ref_text}\n\n"
         "با عضویت در این ربات، ۱ امتیاز برنز دریافت کردید. از دکمه‌های زیر برای مدیریت حساب و دریافت امتیازهای بیشتر استفاده کنید:",
         reply_markup=builder.as_markup()
     )
@@ -129,11 +138,20 @@ async def gold_section(callback: types.CallbackQuery):
     bot_info = await bot.get_me()
     ref_link = f"https://t.me/{bot_info.username}?start={user_id}"
     
+    # محاسبه تعداد دقیق رفرال‌ها از روی امتیازهای طلا
+    conn = sqlite3.connect('dtf_bot.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT gold_points FROM users WHERE user_id = ?', (user_id,))
+    row = cursor.fetchone()
+    conn.close()
+    my_gold = row[0] if row else 0
+    
     builder = InlineKeyboardBuilder()
     builder.button(text="🔙 بازگشت به منوی اصلی", callback_data="main_menu")
     
     text = (
         f"🥇 **بخش امتیاز طلا (دعوت از دوستان):**\n\n"
+        f"تا کنون `{my_gold}` نفر با لینک شما وارد شده‌اند!\n\n"
         f"با ارسال لینک زیر به دوستانتان، به ازای هر ورود موفق ۱ امتیاز طلا (سهم از استخر ۲ میلیون DTF) دریافت کنید!\n\n"
         f"🔗 لینک اختصاصی شما:\n`{ref_link}`"
     )
