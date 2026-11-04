@@ -8,8 +8,8 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 import database
 
-# توکن ربات تلگرام (بعداً میتوانی آن را از BotFather بگیری و جایگزین کنی)
-TOKEN = "YOUR_BOT_TOKEN_HERE"
+# توکن ربات تلگرام (تنظیم شده با توکن واقعی شما)
+TOKEN = "8624024011:AAF1Vfh6oBM618EpdcXp6OHt0iRhUt0qMxE"
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
