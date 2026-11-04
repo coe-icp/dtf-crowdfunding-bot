@@ -10,6 +10,13 @@ import sqlite3
 import database
 
 TOKEN = "8624024011:AAF1Vfh6oBM618EpdcXp6OHt0iRhUt0qMxE"
+ADMIN_ID = YOUR_ADMIN_ID_HERE  # <--- آیدی عددی تلگرام خودت را اینجا به صورت عدد (بدون دابل کوتشن) وارد کن
+USDT_WALLET = "0x57365d61e63972d9Ce11b91e3CD8D29605f8a792"
+
+# لینک کانال‌ها
+CHANNEL_BRONZE = "https://t.me/boronzDTF"
+CHANNEL_GOLD = "https://t.me/talaDTF"
+CHANNEL_DIAMOND = "https://t.me/almasDTF"
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
@@ -93,7 +100,12 @@ async def show_profile(callback: types.CallbackQuery, state: FSMContext):
     diamond = row[3] if row else 0
     dep_status = row[4] if row else "none"
     
-    status_text = "تأیید شده ✅" if dep_status == "approved" else ("در انتظار بررسی ⏳" if dep_status == "pending" else "ثبت نشده ❌")
+    if dep_status == "approved":
+        status_text = f"تأیید شده ✅ (ورود به کانال الماس: {CHANNEL_DIAMOND})"
+    elif dep_status == "pending":
+        status_text = "در انتظار بررسی ادمین ⏳"
+    else:
+        status_text = "ثبت نشده ❌"
     
     builder = InlineKeyboardBuilder()
     builder.button(text="✏️ ثبت یا تغییر کیف پول EVM", callback_data="set_wallet")
@@ -148,7 +160,9 @@ async def gold_section(callback: types.CallbackQuery):
     my_gold = row[0] if row else 0
     
     builder = InlineKeyboardBuilder()
+    builder.button(text="📢 ورود به کانال طلا", url=CHANNEL_GOLD)
     builder.button(text="🔙 بازگشت به منوی اصلی", callback_data="main_menu")
+    builder.adjust(1)
     
     text = (
         f"🥇 **بخش امتیاز طلا (دعوت از دوستان):**\n\n"
@@ -169,31 +183,52 @@ async def diamond_section(callback: types.CallbackQuery):
     text = (
         "💎 **بخش حامیان الماس:**\n\n"
         "مخصوص حامیان گرامی؛ بدون هیچ‌گونه انتظار سود، ۱٪ از نقدینگی بین تمام الماس‌ها توزیع خواهد شد.\n\n"
-        "برای پیوستن به این بخش، مبلغ ۶ USDT (در شبکه دلخواه) به آدرس زیر واریز کرده و سپس روی دکمه‌ی زیر جهت ثبت رسید کلیک کنید:\n\n"
-        "📍 آدرس کیف پول دریافت:\n`0xYourWalletAddressHereForTest`"
+        "برای پیوستن به این بخش، مبلغ ۶ USDT به آدرس زیر واریز کرده و سپس روی دکمه‌ی زیر جهت ارسال رسید (متن TXID یا عکس) کلیک کنید:\n\n"
+        f"📍 آدرس کیف پول دریافت:\n`{USDT_WALLET}`"
     )
     await callback.message.edit_text(text, reply_markup=builder.as_markup(), parse_mode="Markdown")
     await callback.answer()
 
 @dp.callback_query(F.data == "submit_diamond")
 async def ask_diamond_tx(callback: types.CallbackQuery, state: FSMContext):
-    await callback.message.answer("لطفاً کد تراکنش (TXID) یا جزئیات واریز ۶ تتر خود را ارسال کنید:")
+    await callback.message.answer("لطفاً کد تراکنش (TXID) یا تصویر رسید واریز ۶ تتر خود را ارسال کنید:")
     await state.set_state(UserStates.waiting_for_diamond_tx)
     await callback.answer()
 
 @dp.message(UserStates.waiting_for_diamond_tx)
 async def save_diamond_tx(message: types.Message, state: FSMContext):
-    txid = message.text.strip()
     user_id = message.from_user.id
+    user_name = message.from_user.full_name
     
-    conn = sqlite3.connect('dtf_bot.svg') if False else sqlite3.connect('dtf_bot.db')
+    conn = sqlite3.connect('dtf_bot.db')
     cursor = conn.cursor()
     cursor.execute('UPDATE users SET deposit_status = ? WHERE user_id = ?', ('pending', user_id))
     conn.commit()
     conn.close()
     
+    if ADMIN_ID:
+        try:
+            await bot.send_message(
+                ADMIN_ID,
+                f"🔔 **درخواست جدید حامی الماس:**\n\n"
+                f"👤 کاربر: {user_name} (ID: `{user_id}`)\n"
+                f"💬 محتوای ارسالی:\n{message.text or '[ارسال عکس/فایل رسید]'}\n\n"
+                f"برای تأیید، می‌توانید وضعیت کاربر را بررسی کنید."
+            )
+        except Exception:
+            pass
+            
     await state.clear()
-    await message.answer("✅ رسید واریز شما ثبت شد و در صف بررسی ادمین قرار گرفت. پس از تأیید، امتیاز الماس و دسترسی‌های شما فعال خواهد شد!")
+    await message.answer("✅ رسید واریز شما با موفقیت ثبت شد و برای ادمین ارسال گردید. پس از تأیید، امتیاز الماس و دسترسی‌های شما فعال خواهد شد!")
+
+@dp.callback_query(F.data == "bronze_section")
+async def bronze_section(callback: types.CallbackQuery):
+    builder = InlineKeyboardBuilder()
+    builder.button(text="📢 ورود به کانال برنز", url=CHANNEL_BRONZE)
+    builder.button(text="🔙 بازگشت به منوی اصلی", callback_data="main_menu")
+    builder.adjust(1)
+    await callback.message.edit_text("🥉 **جامعه برنز:** دسترسی به اخبار و استخر ۱ میلیون عددی DTF از طریق کانال زیر:", reply_markup=builder.as_markup())
+    await callback.answer()
 
 @dp.callback_query(F.data == "main_menu")
 async def back_to_menu(callback: types.CallbackQuery, state: FSMContext):
@@ -209,13 +244,6 @@ async def back_to_menu(callback: types.CallbackQuery, state: FSMContext):
         "منوی اصلی ربات تأمین مالی **DTF**:",
         reply_markup=builder.as_markup()
     )
-    await callback.answer()
-
-@dp.callback_query(F.data == "bronze_section")
-async def bronze_section(callback: types.CallbackQuery):
-    builder = InlineKeyboardBuilder()
-    builder.button(text="🔙 بازگشت به منوی اصلی", callback_data="main_menu")
-    await callback.message.edit_text("🥉 **جامعه برنز:** دسترسی به اخبار و استخر ۱ میلیون عددی DTF.", reply_markup=builder.as_markup())
     await callback.answer()
 
 async def main():
