@@ -145,20 +145,4 @@ async def save_wallet(message: types.Message, state: FSMContext):
     await state.clear()
     await message.answer("✅ آدرس کیف پول EVM شما با موفقیت ثبت شد!")
 
-@dp.callback_query(F.data == "gold_section")
-async def gold_section(callback: types.CallbackQuery):
-    user_id = callback.from_user.id
-    bot_info = await bot.get_me()
-    ref_link = f"https://t.me/{bot_info.username}?start={user_id}"
-    
-    conn = sqlite3.connect('dtf_bot.db')
-    cursor = conn.cursor()
-    cursor.execute('SELECT gold_points FROM users WHERE user_id = ?', (user_id,))
-    row = cursor.fetchone()
-    conn.close()
-    my_gold = row[0] if row else 0
-    
-    builder = InlineKeyboardBuilder()
-    builder.button(text="📢 ورود به کانال طلا", url=CHANNEL_GOLD)
-    builder.button(text="🔙 بازگشت به منوی اصلی", callback_data="main_menu")
-    builder.adjust(1
+@dp
